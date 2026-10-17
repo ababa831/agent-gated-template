@@ -1,0 +1,11 @@
+# ゲート・CI・エージェントへの指示は、GitHub 本体の仕組みで人間の承認を必須にする。
+# ゲートのコード自体が PR で書き換えられても、ここで守られる。
+# .github/risk-tiers.json の gate-integrity ルールと同じパスを列挙する（テストで一致を検査）。
+/.github/** @ababa831
+/AGENTS.md @ababa831
+/CLAUDE.md @ababa831
+/Makefile @ababa831
+/.coderabbit.yaml @ababa831
+/.cursor/BUGBOT.md @ababa831
+/.semgrep/** @ababa831
+/.gitleaks.toml @ababa831

@@ -1,0 +1,163 @@
+{
+  "$comment": "PR の Tier 判定とゲートの設定。各ファイルは一致したルールのうち最も高い Tier を取り、PR 全体ではその最大値になる。どのルールにも一致しないファイルは defaultTier。このファイル自体の変更は Tier 3。",
+  "version": 1,
+  "defaultTier": 1,
+  "autoMergeMaxTier": -1,
+  "rules": [
+    {
+      "id": "gate-integrity",
+      "tier": 3,
+      "description": "ゲート・CI・エージェントへの指示。エージェントが自分の制約を緩められないようにする。CODEOWNERS と同じパスを列挙する（テストで一致を検査）。",
+      "paths": [
+        ".github/**",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "Makefile",
+        ".coderabbit.yaml",
+        ".cursor/BUGBOT.md",
+        ".semgrep/**",
+        ".gitleaks.toml"
+      ]
+    },
+    {
+      "id": "lint-config",
+      "tier": 3,
+      "description": "lint・型チェックの設定。緩めると Hard Constraint が無効になる。",
+      "paths": [
+        "eslint.config.*",
+        ".eslintrc*",
+        "biome.json",
+        "biome.jsonc",
+        "ruff.toml",
+        ".ruff.toml",
+        "mypy.ini",
+        ".golangci.yml",
+        ".golangci.yaml",
+        "tsconfig*.json",
+        ".swiftlint.yml",
+        "detekt.yml",
+        ".pre-commit-config.yaml"
+      ]
+    },
+    {
+      "id": "dependency-manifests",
+      "tier": 3,
+      "description": "依存の追加・変更。install script やサプライチェーンのリスクがあるため人間が確認する。依存更新ボットの PR は対象外（audit で検査）。",
+      "exceptAuthors": ["dependabot[bot]", "renovate[bot]"],
+      "paths": [
+        "**/package.json",
+        "**/pyproject.toml",
+        "**/requirements*.txt",
+        "**/Pipfile",
+        "**/Cargo.toml",
+        "**/go.mod",
+        "**/Gemfile",
+        "**/build.gradle",
+        "**/build.gradle.kts",
+        "**/pom.xml",
+        "**/Package.swift",
+        "**/Podfile",
+        "**/pubspec.yaml"
+      ]
+    },
+    {
+      "id": "public-release",
+      "tier": 3,
+      "enabled": false,
+      "description": "外部公開・個人情報を扱うようになったら enabled を true にする。パスはプロジェクトに合わせて調整する。",
+      "paths": [
+        "**/auth/**",
+        "**/authz/**",
+        "**/security/**",
+        "**/payment*/**",
+        "**/billing/**",
+        "**/crypto/**",
+        "**/migrations/**",
+        "**/*.sql",
+        "**/infra/**",
+        "**/*.tf"
+      ]
+    },
+    {
+      "id": "docs",
+      "tier": 0,
+      "description": "ドキュメント。",
+      "paths": ["**/*.md", "docs/**", "LICENSE"]
+    },
+    {
+      "id": "tests",
+      "tier": 0,
+      "description": "テストの追加・修正。削除や skip の追加は tests の検査で Tier 3 になる。",
+      "paths": [
+        "test/**",
+        "tests/**",
+        "**/__tests__/**",
+        "**/*.test.*",
+        "**/*.spec.*",
+        "**/*_test.*",
+        "**/test_*.py",
+        "**/*Test.*",
+        "**/*Tests.*"
+      ]
+    }
+  ],
+  "tests": {
+    "paths": [
+      "test/**",
+      "tests/**",
+      "**/__tests__/**",
+      "**/*.test.*",
+      "**/*.spec.*",
+      "**/*_test.*",
+      "**/test_*.py",
+      "**/*Test.*",
+      "**/*Tests.*"
+    ],
+    "skipPatterns": [
+      "\\b(it|test|describe|context)\\.(skip|todo)\\b",
+      "\\bx(it|describe|test)\\s*\\(",
+      "@pytest\\.mark\\.(skip|xfail)",
+      "\\bpytest\\.skip\\s*\\(",
+      "@unittest\\.skip",
+      "\\bt\\.Skip(Now|f)?\\s*\\(",
+      "#\\[ignore\\]",
+      "@(Disabled|Ignore)\\b",
+      "\\bXCTSkip\\b"
+    ]
+  },
+  "raiseLabels": {
+    "risk:tier2": 2,
+    "risk:tier3": 3
+  },
+  "maxChangedLines": 400,
+  "sizeExclude": [
+    "**/*.lock",
+    "**/package-lock.json",
+    "**/pnpm-lock.yaml",
+    "**/go.sum",
+    "**/*.snap",
+    "**/*.md",
+    "docs/**"
+  ],
+  "sizeExemptLabel": "size:exempt",
+  "featureFlag": {
+    "trailer": "Feature-Flag"
+  },
+  "humanApprovers": ["ababa831"],
+  "botReviewers": [
+    {
+      "name": "CodeRabbit",
+      "type": "review",
+      "login": "coderabbitai[bot]",
+      "acceptStates": ["APPROVED"],
+      "minTier": 1,
+      "rerunHint": "@coderabbitai review"
+    },
+    {
+      "name": "Bugbot",
+      "type": "check",
+      "namePattern": "bugbot",
+      "minTier": 1
+    }
+  ]
+}
