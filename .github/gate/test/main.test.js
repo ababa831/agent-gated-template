@@ -81,6 +81,13 @@ test('check_run: 紐づく PR を再評価する', async () => {
   assert.equal(calls.statuses.length, 1);
 });
 
+test('check_run: pull_requests が空なら head_sha から PR を探す', async () => {
+  const { github, calls } = fakeGithub({ files: docsOnly });
+  const payload = { check_run: { app: { slug: 'cursor' }, head_sha: 'head-sha', pull_requests: [] } };
+  await main({ github, context: context('check_run', payload), core: fakeCore() });
+  assert.equal(calls.statuses.length, 1);
+});
+
 test('status: ゲート自身のステータスでは再評価しない', async () => {
   const { github, calls } = fakeGithub({ files: docsOnly });
   await main({ github, context: context('status', { context: 'agent-gate', sha: 's' }), core: fakeCore() });

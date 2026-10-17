@@ -14,22 +14,28 @@ const TIER_LABEL_PREFIX = 'tier:';
 const MAX_FILES = 3000;
 const STATE_ICON = { success: '✅', pending: '⏳', failure: '❌' };
 
+async function openPrNumbersForCommit({ github, context }, sha) {
+  const { data } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+    ...context.repo,
+    commit_sha: sha,
+  });
+  return data.filter((p) => p.state === 'open').map((p) => p.number);
+}
+
 async function targetPrNumbers({ github, context }) {
   const { eventName, payload, repo } = context;
   switch (eventName) {
     case 'pull_request':
     case 'pull_request_review':
       return [payload.pull_request.number];
-    case 'check_run':
-      return payload.check_run.pull_requests.map((p) => p.number);
-    case 'status': {
-      if (payload.context === STATUS_CONTEXT) return [];
-      const { data } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-        ...repo,
-        commit_sha: payload.sha,
-      });
-      return data.filter((p) => p.state === 'open').map((p) => p.number);
+    case 'check_run': {
+      // GitHub が pull_requests を空で送ることがあるため、その場合はコミットから PR を探す。
+      const linked = payload.check_run.pull_requests.map((p) => p.number);
+      return linked.length > 0 ? linked : openPrNumbersForCommit({ github, context }, payload.check_run.head_sha);
     }
+    case 'status':
+      if (payload.context === STATUS_CONTEXT) return [];
+      return openPrNumbersForCommit({ github, context }, payload.sha);
     case 'workflow_dispatch': {
       if (payload.inputs?.pr) return [Number(payload.inputs.pr)];
       const prs = await github.paginate(github.rest.pulls.list, { ...repo, state: 'open', per_page: 100 });
