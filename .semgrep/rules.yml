@@ -5,7 +5,7 @@ rules:
     languages: [generic]
     severity: ERROR
     message: TLS 証明書の検証を無効にしない。テスト用でも、設定で切り替えられる形にしてレビューを受ける。
-    pattern-regex: (verify\s*=\s*False|rejectUnauthorized\s*:\s*false|InsecureSkipVerify\s*:\s*true|NODE_TLS_REJECT_UNAUTHORIZED\s*=\s*['"]?0)
+    pattern-regex: (verify\s*=\s*False|rejectUnauthorized\s*:\s*false|InsecureSkipVerify\s*:\s*true|NODE_TLS_REJECT_UNAUTHORIZED\s*[=:]\s*['"]?0)
     paths:
       exclude:
         - .semgrep/
