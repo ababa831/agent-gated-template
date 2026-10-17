@@ -41,8 +41,12 @@ function validateConfig(c) {
   c.botReviewers.forEach((b, i) => {
     if (!BOT_TYPES.includes(b.type)) fail(`botReviewers[${i}].type は ${BOT_TYPES.join(' / ')}`);
     if (b.type === 'review' && typeof b.login !== 'string') fail(`botReviewers[${i}].login が必要`);
-    if (b.type === 'check') checkRegExp(b.namePattern, `botReviewers[${i}].namePattern`);
-    if (b.type === 'status') checkRegExp(b.contextPattern, `botReviewers[${i}].contextPattern`);
+    // 空のパターンはすべてのチェックに一致し、無関係なチェックの成功でボットの条件を満たしてしまう。
+    const key = { check: 'namePattern', status: 'contextPattern' }[b.type];
+    if (key) {
+      if (typeof b[key] !== 'string' || b[key] === '') fail(`botReviewers[${i}].${key} が必要`);
+      checkRegExp(b[key], `botReviewers[${i}].${key}`);
+    }
   });
   return c;
 }

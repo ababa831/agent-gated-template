@@ -38,6 +38,18 @@ test('不正な正規表現は拒否する', () => {
   );
 });
 
+test('check 型・status 型のパターンが未定義や空文字なら拒否する（空の正規表現はすべてに一致するため）', () => {
+  for (const bot of [
+    { name: 'x', type: 'check' },
+    { name: 'x', type: 'check', namePattern: '' },
+    { name: 'x', type: 'check', pattern: 'bugbot' },
+    { name: 'x', type: 'status' },
+    { name: 'x', type: 'status', contextPattern: '' },
+  ]) {
+    assert.throws(() => validateConfig({ ...valid(), botReviewers: [bot] }), /botReviewers\[0\]/, JSON.stringify(bot));
+  }
+});
+
 test('未知のボット種別は拒否する', () => {
   assert.throws(
     () => validateConfig({ ...valid(), botReviewers: [{ name: 'x', type: 'magic' }] }),
