@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# agent-gate は CodeRabbit の最新コミットへの APPROVED を通過条件にしている。
+# request_changes_workflow を有効にすると、指摘があれば変更要求、すべて解決すれば承認になる。
+language: ja-JP
+reviews:
+  profile: assertive
+  request_changes_workflow: true
+  high_level_summary: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "**/*"
+      instructions: |
+        AGENTS.md の方針に照らしてレビューする。特に次を重視する。
+        - セキュリティ: 認証・認可の抜け、入力検証、シークレットの扱い、依存の追加
+        - 正しさ: 境界値、エラー処理、並行性、既存の挙動の破壊
+        - 設計: レイヤー境界、既存パターンとの一貫性、不要な複雑さ
+        - テスト: 変更に対応するテストがあるか、実装に合わせて期待値を書き換えていないか
