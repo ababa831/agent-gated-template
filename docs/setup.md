@@ -47,6 +47,12 @@ Settings → Actions → General:
 - Workflow permissions: **Read repository contents and packages permissions**（各ワークフローが必要な権限を個別に宣言している）
 - **Allow GitHub Actions to create and approve pull requests** は無効のままにする
 
+Organization のリポジトリで使う場合は、gitleaks のライセンスキー（[gitleaks.io](https://gitleaks.io) で取得、1リポジトリまで無料）を Secret に登録する。個人アカウントのリポジトリでは不要:
+
+```bash
+gh secret set GITLEAKS_LICENSE --repo <owner>/<repo>
+```
+
 ラベルを作る（`tier:N` はゲートが自動で作る）:
 
 ```bash
@@ -129,8 +135,10 @@ gh pr list --label tier:3
   3. `risk-tiers.json` のルール（Tier を上げるパス）
   4. `AGENTS.md` や `.cursor/BUGBOT.md` の方針
 
+macOS と Linux のどちらでも動く（GNU date の書き方を試し、失敗したら BSD date の書き方を使う）:
+
 ```bash
-gh pr list --state merged --label tier:1 --search "merged:>=$(date -v-7d +%Y-%m-%d)" --limit 50
+gh pr list --state merged --label tier:1 --search "merged:>=$(date -d '7 days ago' +%Y-%m-%d 2>/dev/null || date -v-7d +%Y-%m-%d)" --limit 50
 ```
 
 **外部公開するとき**
