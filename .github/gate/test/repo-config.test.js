@@ -61,7 +61,15 @@ test('ゲートを支えるファイルの変更は Tier 3 になる', () => {
     '.github/risk-tiers.json',
     '.github/CODEOWNERS',
     'AGENTS.md',
+    'src/AGENTS.md',
+    'packages/web/CLAUDE.md',
+    '.cursor/BUGBOT.md',
+    'src/BUGBOT.md',
     'Makefile',
+    'GNUmakefile',
+    'makefile',
+    '.semgrepignore',
+    '.gitleaksignore',
   ]) {
     const r = classifyTier(
       { files: [{ filename, status: 'modified', additions: 1, deletions: 0, patch: '+x' }], labels: [], author: 'agent[bot]' },

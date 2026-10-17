@@ -10,13 +10,18 @@
       "description": "ゲート・CI・エージェントへの指示。エージェントが自分の制約を緩められないようにする。CODEOWNERS と同じパスを列挙する（テストで一致を検査）。",
       "paths": [
         ".github/**",
-        "AGENTS.md",
-        "CLAUDE.md",
+        "**/AGENTS.md",
+        "**/CLAUDE.md",
+        "**/BUGBOT.md",
         "Makefile",
+        "GNUmakefile",
+        "makefile",
         ".coderabbit.yaml",
-        ".cursor/BUGBOT.md",
+        ".coderabbit.yml",
         ".semgrep/**",
-        ".gitleaks.toml"
+        ".semgrepignore",
+        ".gitleaks.toml",
+        ".gitleaksignore"
       ]
     },
     {

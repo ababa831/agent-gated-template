@@ -52,8 +52,9 @@
 次のファイルは、人間から明示的に頼まれた場合を除いて変更しない。変更すると Tier 3 になり、CODEOWNERS により人間の承認が必須になる。
 
 - `.github/` 配下（ワークフロー、ゲート、`risk-tiers.json`、CODEOWNERS）
-- `AGENTS.md`、`CLAUDE.md`、`Makefile`
-- `.coderabbit.yaml`、`.cursor/BUGBOT.md`、`.semgrep/`、`.gitleaks.toml`
+- どのディレクトリにある `AGENTS.md`、`CLAUDE.md`、`BUGBOT.md` も（新しく作る場合を含む）
+- `Makefile`、`GNUmakefile`、`makefile`
+- `.coderabbit.yaml`、`.semgrep/`、`.semgrepignore`、`.gitleaks.toml`、`.gitleaksignore`
 - lint・型チェックの設定（`eslint.config.*`、`tsconfig*.json`、`ruff.toml` など）
 
 lint やテストが通らないときは、設定を緩めたりテストを skip したりせず、コードを直す。ルール自体が誤っていると考える場合は、変更せずに理由を PR か Issue に書く。
