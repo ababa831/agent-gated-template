@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('node:fs');
+const { compileTrusted } = require('./regexp');
 
 const isTier = (v) => Number.isInteger(v) && v >= 0 && v <= 3;
 const BOT_TYPES = ['review', 'check', 'status'];
@@ -11,7 +12,7 @@ function fail(message) {
 
 function checkRegExp(pattern, where) {
   try {
-    new RegExp(pattern);
+    compileTrusted(pattern);
   } catch (e) {
     fail(`${where} の正規表現が不正: ${pattern}`);
   }

@@ -3,6 +3,8 @@
 // Tier とレビュー・チェックの状態から、ゲートの結果（success / pending / failure）を決める。
 // どの外部サービスの結果も、PR の HEAD コミットに対するものだけを有効とする。
 
+const { escapeRegExp, compileTrusted } = require('./regexp');
+
 const OK_CONCLUSIONS = ['success', 'neutral', 'skipped'];
 const DECISIVE_STATES = ['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'];
 const MAX_DESCRIPTION = 140;
@@ -29,7 +31,7 @@ function evaluateBot(bot, { headSha, reviews, checkRuns, statuses }) {
   }
 
   if (bot.type === 'check') {
-    const re = new RegExp(bot.namePattern, 'i');
+    const re = compileTrusted(bot.namePattern, 'i');
     const run = checkRuns.filter((c) => re.test(c.name)).pop();
     if (!run) return { name, state: 'pending', message: 'チェック待ち' };
     if (run.status !== 'completed') return { name, state: 'pending', message: `実行中（${run.status}）` };
@@ -38,7 +40,7 @@ function evaluateBot(bot, { headSha, reviews, checkRuns, statuses }) {
   }
 
   if (bot.type === 'status') {
-    const re = new RegExp(bot.contextPattern);
+    const re = compileTrusted(bot.contextPattern);
     const st = statuses.find((s) => re.test(s.context));
     if (!st) return { name, state: 'pending', message: 'ステータス待ち' };
     if (st.state === 'success') return { name, state: 'success', message: 'success' };
@@ -66,7 +68,7 @@ function evaluateHuman(config, { headSha, reviews }) {
 }
 
 function featureFlagOf(body, trailer) {
-  const re = new RegExp(`^${trailer}:[ \\t]*(\\S+)[ \\t]*$`, 'mi');
+  const re = compileTrusted(`^${escapeRegExp(trailer)}:[ \\t]*(\\S+)[ \\t]*$`, 'mi');
   const m = (body ?? '').match(re);
   if (!m) return null;
   const value = m[1];

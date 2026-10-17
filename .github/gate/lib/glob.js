@@ -6,6 +6,8 @@
 //   **/  0個以上のディレクトリ
 //   /**  末尾に置くと配下すべて
 
+const { escapeRegExp, compileTrusted } = require('./regexp');
+
 const cache = new Map();
 
 function globToRegExp(pattern) {
@@ -27,10 +29,10 @@ function globToRegExp(pattern) {
     } else if (c === '?') {
       re += '[^/]';
     } else {
-      re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+      re += escapeRegExp(c);
     }
   }
-  const compiled = new RegExp(`^${re}$`);
+  const compiled = compileTrusted(`^${re}$`);
   cache.set(pattern, compiled);
   return compiled;
 }

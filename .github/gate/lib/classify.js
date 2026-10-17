@@ -1,6 +1,7 @@
 'use strict';
 
 const { matchesAny } = require('./glob');
+const { compileTrusted } = require('./regexp');
 
 // PR の変更内容から Tier を決める。
 // 判定は「高い方を取る」だけで、ラベルや作者によって引き下げることはない。
@@ -18,7 +19,7 @@ function classifyTier({ files, labels = [], author, filesTruncated = false }, co
 
   const rules = config.rules.filter((r) => r.enabled !== false);
   const testPaths = config.tests?.paths ?? [];
-  const skipRes = (config.tests?.skipPatterns ?? []).map((p) => new RegExp(p));
+  const skipRes = (config.tests?.skipPatterns ?? []).map((p) => compileTrusted(p));
   let changedLines = 0;
 
   for (const f of files) {

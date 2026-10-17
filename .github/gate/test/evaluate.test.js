@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { evaluateGate } = require('../lib/evaluate');
+const { evaluateGate, featureFlagOf } = require('../lib/evaluate');
 
 const HEAD = 'head-sha';
 const OLD = 'old-sha';
@@ -125,6 +125,11 @@ test('Tier 2 は Feature-Flag の記載がなければ failure', () => {
     pr: { headSha: HEAD, draft: false, body: 'summary\n\nFeature-Flag: new_checkout\n', author: 'agent[bot]' },
   });
   assert.equal(ok.state, 'success');
+});
+
+test('trailer 名に含まれる正規表現の記号はリテラルとして扱う', () => {
+  assert.equal(featureFlagOf('Flag.Name: x', 'Flag.Name'), 'x');
+  assert.equal(featureFlagOf('FlagXName: x', 'Flag.Name'), null);
 });
 
 test('Tier 3 は人間の HEAD への承認がなければ pending', () => {
