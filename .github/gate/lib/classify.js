@@ -23,21 +23,27 @@ function classifyTier({ files, labels = [], author, filesTruncated = false }, co
   let changedLines = 0;
 
   for (const f of files) {
+    // リネームは前後のパスをそれぞれ1つのファイルとして判定する。
+    // まとめて判定すると、片方に低い Tier のルールが一致したときに defaultTier が抜け落ちる。
     const paths = [f.filename, f.previous_filename].filter(Boolean);
-    const matched = rules.filter(
-      (r) => !(r.exceptAuthors ?? []).includes(author) && paths.some((p) => matchesAny(p, r.paths)),
-    );
-    if (matched.length === 0) {
-      if (config.defaultTier > tier) tier = config.defaultTier;
-    } else {
-      const top = matched.reduce((a, b) => (b.tier > a.tier ? b : a));
-      if (top.tier >= 2) raise(top.tier, `${f.filename}（${top.id}）`);
-      else if (top.tier > tier) tier = top.tier;
+    for (const p of paths) {
+      const matched = rules.filter((r) => !(r.exceptAuthors ?? []).includes(author) && matchesAny(p, r.paths));
+      if (matched.length === 0) {
+        if (config.defaultTier > tier) tier = config.defaultTier;
+      } else {
+        const top = matched.reduce((a, b) => (b.tier > a.tier ? b : a));
+        if (top.tier >= 2) raise(top.tier, `${p}（${top.id}）`);
+        else if (top.tier > tier) tier = top.tier;
+      }
     }
 
+    const movedOutOfTests =
+      Boolean(f.previous_filename) &&
+      matchesAny(f.previous_filename, testPaths) &&
+      !matchesAny(f.filename, testPaths);
     if (paths.some((p) => matchesAny(p, testPaths))) {
-      if (f.status === 'removed') {
-        raise(3, `テストファイルの削除: ${f.filename}`);
+      if (f.status === 'removed' || movedOutOfTests) {
+        raise(3, `テストファイルの削除: ${f.previous_filename ?? f.filename}`);
       } else if (typeof f.patch !== 'string') {
         raise(3, `差分を取得できないテストファイル: ${f.filename}`);
       } else {

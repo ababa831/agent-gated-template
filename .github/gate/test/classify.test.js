@@ -67,6 +67,24 @@ test('リネーム元のパスも判定に含める', () => {
   assert.equal(r.tier, 3);
 });
 
+test('リネームは前後のパスを個別に判定し、一致しない側には defaultTier を適用する', () => {
+  const toDocs = classify([file('docs/x.md', { status: 'renamed', previous_filename: 'src/x.js' })]);
+  assert.equal(toDocs.tier, 1);
+  const fromDocs = classify([file('src/x.js', { status: 'renamed', previous_filename: 'docs/x.md' })]);
+  assert.equal(fromDocs.tier, 1);
+});
+
+test('テストのパスの外へのリネームは、テストの削除として Tier 3', () => {
+  const r = classify([file('src/a.ts', { status: 'renamed', previous_filename: 'tests/a.test.ts' })]);
+  assert.equal(r.tier, 3);
+  assert.ok(r.reasons.some((x) => x.includes('削除')));
+});
+
+test('テストのパス内でのリネームは削除として扱わない', () => {
+  const r = classify([file('tests/b.test.ts', { status: 'renamed', previous_filename: 'tests/a.test.ts' })]);
+  assert.equal(r.tier, 0);
+});
+
 test('依存マニフェストの変更は Tier 3、ただし除外された作者なら対象外', () => {
   assert.equal(classify([file('apps/web/package.json')]).tier, 3);
   assert.equal(classify([file('apps/web/package.json')], { author: 'dependabot[bot]' }).tier, 1);
