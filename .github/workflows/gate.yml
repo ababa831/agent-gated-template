@@ -1,0 +1,53 @@
+name: gate
+
+# PR の Tier を判定し、ボットのレビュー・人間の承認の状態をまとめて
+# コミットステータス `agent-gate` として PR の HEAD に付ける。
+# ruleset ではこの `agent-gate` を required status check にする。
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, edited, labeled, unlabeled]
+  pull_request_review:
+    types: [submitted, dismissed]
+  check_run:
+    types: [completed]
+  status:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: 対象の PR 番号（空なら open な PR すべて）
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  statuses: write
+  checks: read
+
+concurrency:
+  group: gate-${{ github.event.pull_request.number || github.event.check_run.head_sha || github.event.sha || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    name: evaluate
+    # GitHub Actions 自身のチェック完了では再評価しない（Actions 実行時間の節約）。
+    # ゲートが付けるステータスでも再評価しない。
+    if: >-
+      (github.event_name != 'check_run' || github.event.check_run.app.slug != 'github-actions') &&
+      (github.event_name != 'status' || github.event.context != 'agent-gate')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # ゲートのコードと設定は PR ではなくデフォルトブランチから読む。
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: .github
+          persist-credentials: false
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const main = require(`${process.env.GITHUB_WORKSPACE}/.github/gate/main.js`);
+            await main({ github, context, core });

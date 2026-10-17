@@ -1,0 +1,137 @@
+name: ci
+
+# プロジェクトの CI。言語に依存する処理は Makefile の check / test / verify / audit に書き、
+# ここはそれを呼ぶだけにする。ruleset ではジョブ名（check, test, verify, audit, secrets, sast,
+# workflow-lint）を required status check にする。
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      # プロジェクトの言語のセットアップ（setup-node / setup-python / setup-go など）をここに追加する。
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: make check
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: make test
+
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: make verify
+      # スクリーンショットや動画などの検証の証拠を artifacts/verify/ に出力すると保存される。
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-evidence
+          path: artifacts/verify/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - run: make audit
+
+  secrets:
+    name: secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sast:
+    name: sast
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - run: semgrep scan --config p/default --config .semgrep/ --error --metrics=off
+
+  workflow-lint:
+    name: workflow-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.7 -color
+
+  # main で CI が落ちたら Issue で知らせる。エージェントは main-broken の Issue を最優先で直す。
+  report-main-broken:
+    name: report-main-broken
+    needs: [check, test, verify, audit, secrets, sast, workflow-lint]
+    if: failure() && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const label = 'main-broken';
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `main の CI が失敗しました。\n\n- commit: ${context.sha}\n- run: ${run}`;
+            const { data: open } = await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', labels: label,
+            });
+            if (open.length > 0) {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: open[0].number, body });
+            } else {
+              await github.rest.issues.create({
+                ...context.repo, title: 'main の CI が失敗しています', labels: [label], body,
+              });
+            }
