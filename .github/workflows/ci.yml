@@ -87,13 +87,15 @@ jobs:
       - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Organization のリポジトリでは必須（個人アカウントのリポジトリでは不要）。docs/setup.md を参照。
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
   sast:
     name: sast
     runs-on: ubuntu-latest
     timeout-minutes: 15
     container:
-      image: semgrep/semgrep
+      image: semgrep/semgrep:1.179.0@sha256:93963d9295a366f59e4850127b1550400ee7b388f04fe144e4a1f6325d96e01b
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -108,7 +110,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
-      - run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.7 -color
+      - run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 -color
 
   # main で CI が落ちたら Issue で知らせる。エージェントは main-broken の Issue を最優先で直す。
   report-main-broken:
@@ -125,9 +127,11 @@ jobs:
             const label = 'main-broken';
             const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const body = `main の CI が失敗しました。\n\n- commit: ${context.sha}\n- run: ${run}`;
-            const { data: open } = await github.rest.issues.listForRepo({
+            const { data: items } = await github.rest.issues.listForRepo({
               ...context.repo, state: 'open', labels: label,
             });
+            // listForRepo は PR も返すため、Issue だけを対象にする。
+            const open = items.filter((i) => !i.pull_request);
             if (open.length > 0) {
               await github.rest.issues.createComment({ ...context.repo, issue_number: open[0].number, body });
             } else {

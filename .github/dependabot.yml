@@ -11,3 +11,4 @@ updates:
       actions:
         patterns: ["*"]
   # プロジェクトの言語に合わせて追加する（npm / pip / uv / gomod / cargo / swift など）。
+  # 追加するエコシステムにも同じ cooldown を付ける。
