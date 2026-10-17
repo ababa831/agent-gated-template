@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { loadConfig } = require('../lib/config');
 const { classifyTier } = require('../lib/classify');
+const { compileTrusted } = require('../lib/regexp');
 
 const root = path.resolve(__dirname, '../../..');
 const config = loadConfig(path.join(root, '.github/risk-tiers.json'));
@@ -30,7 +31,7 @@ test('CODEOWNERS と gate-integrity ルールのパスが一致している', ()
 });
 
 test('skipPatterns は主要言語の skip 記法を検出し、通常のテストは検出しない', () => {
-  const res = config.tests.skipPatterns.map((p) => new RegExp(p));
+  const res = config.tests.skipPatterns.map((p) => compileTrusted(p));
   const hit = (line) => res.some((re) => re.test(line));
   for (const line of [
     "it.skip('a', () => {})",
