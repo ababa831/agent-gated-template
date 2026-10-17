@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # 公開直後の版は乗っ取りなどで差し替えられることがあるため、一定期間おいてから更新する。
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+  # プロジェクトの言語に合わせて追加する（npm / pip / uv / gomod / cargo / swift など）。
+  # 追加するエコシステムにも同じ cooldown を付ける。

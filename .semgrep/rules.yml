@@ -1,0 +1,11 @@
+# プロジェクト固有の Semgrep ルール。レビューで同じ指摘を2〜3回したら、ここにルールとして追加する。
+# 言語に依存しないものは languages: [generic] と pattern-regex で書ける。
+rules:
+  - id: no-disabled-tls-verification
+    languages: [generic]
+    severity: ERROR
+    message: TLS 証明書の検証を無効にしない。テスト用でも、設定で切り替えられる形にしてレビューを受ける。
+    pattern-regex: (verify\s*=\s*False|rejectUnauthorized\s*:\s*false|InsecureSkipVerify\s*:\s*true|NODE_TLS_REJECT_UNAUTHORIZED\s*[=:]\s*['"]?0)
+    paths:
+      exclude:
+        - .semgrep/

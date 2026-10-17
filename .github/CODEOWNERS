@@ -1,0 +1,18 @@
+# ゲート・CI・エージェントへの指示は、GitHub 本体の仕組みで人間の承認を必須にする。
+# ゲートのコード自体が PR で書き換えられても、ここで守られる。
+# .github/risk-tiers.json の gate-integrity ルールと同じパスを列挙する（テストで一致を検査）。
+/.github/** @ababa831
+# エージェントやレビューボットはサブディレクトリの指示ファイルも読むため、場所を問わず保護する。
+**/AGENTS.md @ababa831
+**/CLAUDE.md @ababa831
+**/BUGBOT.md @ababa831
+# GNU make は Makefile より先に GNUmakefile と makefile を探す。
+/Makefile @ababa831
+/GNUmakefile @ababa831
+/makefile @ababa831
+/.coderabbit.yaml @ababa831
+/.coderabbit.yml @ababa831
+/.semgrep/** @ababa831
+/.semgrepignore @ababa831
+/.gitleaks.toml @ababa831
+/.gitleaksignore @ababa831
