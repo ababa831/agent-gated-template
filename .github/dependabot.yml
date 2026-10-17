@@ -4,6 +4,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # 公開直後の版は乗っ取りなどで差し替えられることがあるため、一定期間おいてから更新する。
+    cooldown:
+      default-days: 7
     groups:
       actions:
         patterns: ["*"]
