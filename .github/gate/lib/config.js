@@ -37,6 +37,12 @@ function validateConfig(c) {
   if (!Array.isArray(c.humanApprovers) || c.humanApprovers.length === 0) {
     fail('humanApprovers が空だと Tier 3 を承認できない');
   }
+  if (
+    c.reviewExemptAuthors !== undefined &&
+    !(Array.isArray(c.reviewExemptAuthors) && c.reviewExemptAuthors.every((a) => typeof a === 'string'))
+  ) {
+    fail('reviewExemptAuthors は文字列の配列');
+  }
   if (!Array.isArray(c.botReviewers)) fail('botReviewers は配列');
   c.botReviewers.forEach((b, i) => {
     if (!BOT_TYPES.includes(b.type)) fail(`botReviewers[${i}].type は ${BOT_TYPES.join(' / ')}`);
@@ -46,6 +52,13 @@ function validateConfig(c) {
     if (key) {
       if (typeof b[key] !== 'string' || b[key] === '') fail(`botReviewers[${i}].${key} が必要`);
       checkRegExp(b[key], `botReviewers[${i}].${key}`);
+    }
+    if (b.skipStatus !== undefined) {
+      for (const k of ['contextPattern', 'descriptionPattern']) {
+        const v = b.skipStatus?.[k];
+        if (typeof v !== 'string' || v === '') fail(`botReviewers[${i}].skipStatus.${k} が必要`);
+        checkRegExp(v, `botReviewers[${i}].skipStatus.${k}`);
+      }
     }
   });
   return c;

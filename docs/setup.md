@@ -34,6 +34,8 @@ GitHub では、自分が作った PR を自分で承認できない。エージ
 
 Settings → Developer settings → GitHub Apps で App を作る。権限は A と同じで、Workflows は付けない。対象リポジトリにインストールし、installation token をエージェントに渡す。
 
+App の PR は作成者が bot になるため、CodeRabbit はレビューをスキップする。ゲートはその場合に人間の承認で代替するので、Tier 1 の PR も自動マージされなくなる。人間の承認を減らしたい場合は A を使う。
+
 ## 3. リポジトリの設定
 
 Settings → General:
@@ -89,10 +91,15 @@ Settings → Rules → Rulesets → **New branch ruleset**:
 
 使わないボットは `.github/risk-tiers.json` の `botReviewers` から外す。外さないと、そのボットの結果待ちで pending のままになる。
 
+bot が作成した PR の扱い（`.github/risk-tiers.json`）:
+
+- `reviewExemptAuthors`（初期値は Dependabot と Renovate）の PR では、AI レビューを必須にしない。どちらのボットも依存更新の PR をレビューしないため。版の更新は CI・`audit`・Dependabot の cooldown で検査する。Tier はパスで決まるので、ワークフローの更新（`.github/` の変更）は Tier 3 で、人間の承認が必要なまま。
+- CodeRabbit がレビューをスキップしたとき（コミットステータスの説明が `Review skipped` になる）は、`skipStatus` で検出し、人間の承認で代替する。
+
 shadow mode の間に次を確認する。サービス側の仕様は変わることがあるため、ゲートの前提が合っているかを実際の PR で見る。
 
 - CodeRabbit のレビューの作成者が `coderabbitai[bot]` か
-- CodeRabbit がエージェント（マシンユーザーや App）の PR もレビューするか
+- CodeRabbit がエージェントの PR をレビューするか（マシンユーザーならレビューされ、App ならスキップされる）
 - Bugbot のチェック名に `bugbot` が含まれるか（`namePattern`）
 
 ## 6. 最初のマージ（ブートストラップ）

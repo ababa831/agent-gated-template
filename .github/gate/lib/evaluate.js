@@ -11,13 +11,25 @@ const MAX_DESCRIPTION = 140;
 
 const loginOf = (r) => r.user?.login;
 
+// ボットがこの PR をレビュー対象外としてスキップしたか（例: CodeRabbit は bot が作成した PR をレビューしない）。
+// スキップされた結果は来ないため、待ち続けずに人間の承認で代替する。
+function skippedBy(bot, statuses) {
+  if (!bot.skipStatus) return false;
+  const contextRe = compileTrusted(bot.skipStatus.contextPattern);
+  const descriptionRe = compileTrusted(bot.skipStatus.descriptionPattern, 'i');
+  return statuses.some((s) => contextRe.test(s.context) && descriptionRe.test(s.description ?? ''));
+}
+
 function evaluateBot(bot, { headSha, reviews, checkRuns, statuses }) {
   const name = bot.name;
+  if (skippedBy(bot, statuses)) {
+    return { name, state: 'success', skipped: true, message: 'この PR のレビューをスキップした。人間の承認で代替する' };
+  }
   if (bot.type === 'review') {
     const mine = reviews.filter((r) => loginOf(r) === bot.login);
     const latest = mine[mine.length - 1];
     const hint = bot.rerunHint ? `（再レビューは PR に「${bot.rerunHint}」とコメント）` : '';
-    if (!latest) return { name, state: 'pending', message: 'レビュー待ち' };
+    if (!latest) return { name, state: 'pending', absent: true, message: 'レビュー待ち' };
     if (latest.commit_id !== headSha) {
       return { name, state: 'pending', message: `最新コミットのレビュー待ち${hint}` };
     }
@@ -33,7 +45,7 @@ function evaluateBot(bot, { headSha, reviews, checkRuns, statuses }) {
   if (bot.type === 'check') {
     const re = compileTrusted(bot.namePattern, 'i');
     const run = checkRuns.filter((c) => re.test(c.name)).pop();
-    if (!run) return { name, state: 'pending', message: 'チェック待ち' };
+    if (!run) return { name, state: 'pending', absent: true, message: 'チェック待ち' };
     if (run.status !== 'completed') return { name, state: 'pending', message: `実行中（${run.status}）` };
     if (OK_CONCLUSIONS.includes(run.conclusion)) return { name, state: 'success', message: run.conclusion };
     return { name, state: 'failure', message: `結果: ${run.conclusion}` };
@@ -42,7 +54,7 @@ function evaluateBot(bot, { headSha, reviews, checkRuns, statuses }) {
   if (bot.type === 'status') {
     const re = compileTrusted(bot.contextPattern);
     const st = statuses.find((s) => re.test(s.context));
-    if (!st) return { name, state: 'pending', message: 'ステータス待ち' };
+    if (!st) return { name, state: 'pending', absent: true, message: 'ステータス待ち' };
     if (st.state === 'success') return { name, state: 'success', message: 'success' };
     if (st.state === 'pending') return { name, state: 'pending', message: '実行中' };
     return { name, state: 'failure', message: `結果: ${st.state}` };
@@ -97,8 +109,27 @@ function evaluateGate({ classification, pr, reviews = [], checkRuns = [], status
     });
   }
 
-  for (const bot of config.botReviewers) {
-    if (tier >= (bot.minTier ?? 1)) details.push(evaluateBot(bot, ctx));
+  let botSkipped = false;
+  if ((config.reviewExemptAuthors ?? []).includes(pr.author)) {
+    details.push({
+      name: 'bot-review',
+      state: 'success',
+      message: `${pr.author} の PR は AI レビューの対象外（CI と audit で検査）`,
+    });
+  } else {
+    const results = config.botReviewers
+      .filter((bot) => tier >= (bot.minTier ?? 1))
+      .map((bot) => evaluateBot(bot, ctx));
+    botSkipped = results.some((r) => r.skipped);
+    for (const r of results) {
+      // スキップを人間の承認で代替するときは、スキップの合図を出さないボット（Bugbot など）の
+      // 未着の結果も代替する。失敗や実行中の結果はこれまでどおりゲートを止める。
+      details.push(
+        botSkipped && r.absent
+          ? { name: r.name, state: 'success', message: '結果なし。人間の承認で代替する' }
+          : r,
+      );
+    }
   }
 
   if (tier === 2) {
@@ -116,9 +147,9 @@ function evaluateGate({ classification, pr, reviews = [], checkRuns = [], status
   }
 
   const automated = combine(details);
-  const needsHuman = tier >= 3 || tier > config.autoMergeMaxTier;
+  const needsHuman = tier >= 3 || tier > config.autoMergeMaxTier || botSkipped;
   if (needsHuman) {
-    if (tier < 3) {
+    if (tier < 3 && tier > config.autoMergeMaxTier) {
       const verdict = { success: '通過', pending: '待機中', failure: '不合格' }[automated];
       details.push({
         name: 'shadow',

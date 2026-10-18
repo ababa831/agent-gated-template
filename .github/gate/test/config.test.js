@@ -50,6 +50,24 @@ test('check 型・status 型のパターンが未定義や空文字なら拒否�
   }
 });
 
+test('skipStatus のパターンが欠けていたり不正なら拒否する', () => {
+  const bot = (skipStatus) => ({ name: 'x', type: 'review', login: 'x[bot]', skipStatus });
+  for (const skipStatus of [{}, { contextPattern: 'x' }, { contextPattern: '', descriptionPattern: 'x' }, { contextPattern: '(', descriptionPattern: 'x' }]) {
+    assert.throws(
+      () => validateConfig({ ...valid(), botReviewers: [bot(skipStatus)] }),
+      /botReviewers\[0\]\.skipStatus/,
+      JSON.stringify(skipStatus),
+    );
+  }
+  assert.doesNotThrow(() =>
+    validateConfig({ ...valid(), botReviewers: [bot({ contextPattern: '^x$', descriptionPattern: 'skipped' })] }),
+  );
+});
+
+test('reviewExemptAuthors は文字列の配列', () => {
+  assert.throws(() => validateConfig({ ...valid(), reviewExemptAuthors: 'dependabot[bot]' }), /reviewExemptAuthors/);
+});
+
 test('未知のボット種別は拒否する', () => {
   assert.throws(
     () => validateConfig({ ...valid(), botReviewers: [{ name: 'x', type: 'magic' }] }),

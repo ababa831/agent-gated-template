@@ -149,6 +149,7 @@
     "trailer": "Feature-Flag"
   },
   "humanApprovers": ["ababa831"],
+  "reviewExemptAuthors": ["dependabot[bot]", "renovate[bot]"],
   "botReviewers": [
     {
       "name": "CodeRabbit",
@@ -156,7 +157,11 @@
       "login": "coderabbitai[bot]",
       "acceptStates": ["APPROVED"],
       "minTier": 1,
-      "rerunHint": "@coderabbitai review"
+      "rerunHint": "@coderabbitai review",
+      "skipStatus": {
+        "contextPattern": "^CodeRabbit$",
+        "descriptionPattern": "review skipped"
+      }
     },
     {
       "name": "Bugbot",
