@@ -38,6 +38,7 @@ gate.yml    変更パスから Tier を判定し、ボットと人間の状態�
 | `Makefile` | CI とエージェントが使う共通コマンド（`check` / `test` / `verify` / `audit`）。言語ごとの処理はここに書く |
 | `.github/workflows/ci.yml` | CI。Makefile を呼ぶだけ。main で落ちたら `main-broken` の Issue を作る |
 | `.github/workflows/gate.yml` | ゲート |
+| `.github/workflows/dependabot-auto-merge.yml` | Dependabot の PR で auto-merge を有効にする（major を除く） |
 | `.github/gate/` | ゲートの判定ロジック（外部依存なしの Node.js）とテスト |
 | `.github/risk-tiers.json` | Tier の判定ルール、ボットの設定、承認者 |
 | `.github/CODEOWNERS` | 人間の承認を必須にするパス |

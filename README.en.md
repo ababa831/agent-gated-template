@@ -38,6 +38,7 @@ Merged once everything passes (Tier 3 and similar wait for human approval)
 | `Makefile` | Shared commands for CI and agents (`check` / `test` / `verify` / `audit`); put language-specific steps here |
 | `.github/workflows/ci.yml` | CI, which only calls the Makefile; opens a `main-broken` issue when main fails |
 | `.github/workflows/gate.yml` | The gate |
+| `.github/workflows/dependabot-auto-merge.yml` | Enables auto-merge on Dependabot PRs (except major updates) |
 | `.github/gate/` | Gate logic (dependency-free Node.js) and its tests |
 | `.github/risk-tiers.json` | Tier rules, bot settings, approvers |
 | `.github/CODEOWNERS` | Paths that require human approval |

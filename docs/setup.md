@@ -102,6 +102,34 @@ shadow mode の間に次を確認する。サービス側の仕様は変わる�
 - CodeRabbit がエージェントの PR をレビューするか（マシンユーザーならレビューされ、App ならスキップされる）
 - Bugbot のチェック名に `bugbot` が含まれるか（`namePattern`）
 
+### Dependabot の PR の自動マージ
+
+Dependabot は自分で auto-merge を有効にしないため、`.github/workflows/dependabot-auto-merge.yml` が代わりに有効にする。実際にマージされるのは `agent-gate` と CI が通った後。
+
+- major の更新は対象外。PR にコメントが付くので、変更履歴を確認して手動でマージする。
+- Actions の更新（`.github/` の変更）は Tier 3 なので、あなたが承認した時点でマージされる。
+- 言語の依存の更新は Tier 1 なので、`autoMergeMaxTier` が `1` 以上なら人間の承認なしでマージされる。
+
+auto-merge の有効化には、2 で作ったエージェント用マシンユーザーのトークンを使う。`GITHUB_TOKEN` で有効にすると、マージ後の push が新しいワークフローを起動せず、main の CI と `main-broken` の通知が働かないため。
+
+前提条件: 2 の A のマシンユーザーと、その fine-grained personal access token（Contents と Pull requests が Read and write）。
+
+1. トークンを **Dependabot の Secret** として登録する。Dependabot の PR から起動されたワークフローは、Actions の Secret を読めない。
+
+   ```bash
+   gh secret set AUTO_MERGE_TOKEN --app dependabot --repo <owner>/<repo>
+   ```
+
+   `<owner>/<repo>` は対象リポジトリ。プロンプトにトークンを貼り付ける。
+
+2. 登録されたことを確認する。一覧に `AUTO_MERGE_TOKEN` が表示されれば成功。
+
+   ```bash
+   gh secret list --app dependabot --repo <owner>/<repo>
+   ```
+
+3. 次に Dependabot が PR を作ったとき、PR に「Auto-merge enabled」と表示されることを確認する。Secret が未設定の場合、ワークフローは何もせずに成功し、ログに未設定の通知が出る。
+
 ## 6. 最初のマージ（ブートストラップ）
 
 ゲートのコードはデフォルトブランチから読み込むため、ゲートを追加する最初の PR では `agent-gate` が動かない。最初の PR だけは admin の bypass でマージし、その後に ruleset を有効にする。
