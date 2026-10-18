@@ -11,8 +11,20 @@ const MAX_DESCRIPTION = 140;
 
 const loginOf = (r) => r.user?.login;
 
+// ボットがこの PR をレビュー対象外としてスキップしたか（例: CodeRabbit は bot が作成した PR をレビューしない）。
+// スキップされた結果は来ないため、待ち続けずに人間の承認で代替する。
+function skippedBy(bot, statuses) {
+  if (!bot.skipStatus) return false;
+  const contextRe = compileTrusted(bot.skipStatus.contextPattern);
+  const descriptionRe = compileTrusted(bot.skipStatus.descriptionPattern, 'i');
+  return statuses.some((s) => contextRe.test(s.context) && descriptionRe.test(s.description ?? ''));
+}
+
 function evaluateBot(bot, { headSha, reviews, checkRuns, statuses }) {
   const name = bot.name;
+  if (skippedBy(bot, statuses)) {
+    return { name, state: 'success', skipped: true, message: 'この PR のレビューをスキップした。人間の承認で代替する' };
+  }
   if (bot.type === 'review') {
     const mine = reviews.filter((r) => loginOf(r) === bot.login);
     const latest = mine[mine.length - 1];
@@ -97,8 +109,20 @@ function evaluateGate({ classification, pr, reviews = [], checkRuns = [], status
     });
   }
 
-  for (const bot of config.botReviewers) {
-    if (tier >= (bot.minTier ?? 1)) details.push(evaluateBot(bot, ctx));
+  let botSkipped = false;
+  if ((config.reviewExemptAuthors ?? []).includes(pr.author)) {
+    details.push({
+      name: 'bot-review',
+      state: 'success',
+      message: `${pr.author} の PR は AI レビューの対象外（CI と audit で検査）`,
+    });
+  } else {
+    for (const bot of config.botReviewers) {
+      if (tier < (bot.minTier ?? 1)) continue;
+      const result = evaluateBot(bot, ctx);
+      if (result.skipped) botSkipped = true;
+      details.push(result);
+    }
   }
 
   if (tier === 2) {
@@ -116,9 +140,9 @@ function evaluateGate({ classification, pr, reviews = [], checkRuns = [], status
   }
 
   const automated = combine(details);
-  const needsHuman = tier >= 3 || tier > config.autoMergeMaxTier;
+  const needsHuman = tier >= 3 || tier > config.autoMergeMaxTier || botSkipped;
   if (needsHuman) {
-    if (tier < 3) {
+    if (tier < 3 && tier > config.autoMergeMaxTier) {
       const verdict = { success: '通過', pending: '待機中', failure: '不合格' }[automated];
       details.push({
         name: 'shadow',

@@ -54,6 +54,18 @@ test('skipPatterns は主要言語の skip 記法を検出し、通常のテス�
   }
 });
 
+test('CodeRabbit が bot の PR をスキップしたときのステータスを検出できる', () => {
+  const { skipStatus } = config.botReviewers.find((b) => b.name === 'CodeRabbit');
+  const status = { context: 'CodeRabbit', description: 'Review skipped: bot user not eligible for review' };
+  assert.equal(compileTrusted(skipStatus.contextPattern).test(status.context), true);
+  assert.equal(compileTrusted(skipStatus.descriptionPattern, 'i').test(status.description), true);
+  assert.equal(compileTrusted(skipStatus.descriptionPattern, 'i').test('Review completed'), false);
+});
+
+test('依存更新ボットは AI レビューの対象外', () => {
+  assert.ok(config.reviewExemptAuthors.includes('dependabot[bot]'));
+});
+
 test('ゲートを支えるファイルの変更は Tier 3 になる', () => {
   for (const filename of [
     '.github/workflows/ci.yml',

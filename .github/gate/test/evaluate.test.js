@@ -195,6 +195,60 @@ test('draft の PR は pending', () => {
   assert.equal(r.state, 'pending');
 });
 
+const withBotPolicies = {
+  ...config,
+  reviewExemptAuthors: ['dependabot[bot]'],
+  botReviewers: [
+    {
+      ...config.botReviewers[0],
+      skipStatus: { contextPattern: '^CodeRabbit$', descriptionPattern: 'skipped' },
+    },
+    config.botReviewers[1],
+  ],
+};
+
+test('依存更新ボットの PR では AI レビューを待たずに通過する', () => {
+  const r = evaluate({
+    config: withBotPolicies,
+    pr: { headSha: HEAD, draft: false, body: '', author: 'dependabot[bot]' },
+  });
+  assert.equal(r.state, 'success');
+  assert.ok(r.details.some((d) => d.name === 'bot-review' && d.state === 'success'));
+});
+
+test('依存更新ボットの PR でも Tier 3 なら人間の承認が必要', () => {
+  const r = evaluate({
+    config: withBotPolicies,
+    classification: { tier: 3, reasons: [], sizeExceeded: false },
+    pr: { headSha: HEAD, draft: false, body: '', author: 'dependabot[bot]' },
+  });
+  assert.equal(r.state, 'pending');
+  assert.ok(r.details.some((d) => d.name === 'human' && d.state === 'pending'));
+});
+
+test('AI レビューがスキップを報告したら、待ち続けずに人間の承認で代替する', () => {
+  const statuses = [{ context: 'CodeRabbit', state: 'success', description: 'Review skipped: bot user not eligible for review' }];
+  const base = {
+    config: withBotPolicies,
+    checkRuns: passingBots.checkRuns,
+    statuses,
+    pr: { headSha: HEAD, draft: false, body: '', author: 'agent-app[bot]' },
+  };
+  const waiting = evaluate(base);
+  assert.equal(waiting.state, 'pending');
+  assert.equal(waiting.autoMergeEligible, false);
+  assert.ok(waiting.details.some((d) => d.name === 'CodeRabbit' && d.message.includes('スキップ')));
+  const approved = evaluate({ ...base, reviews: [review('owner', 'APPROVED')] });
+  assert.equal(approved.state, 'success');
+});
+
+test('スキップ以外のステータスはスキップとして扱わない', () => {
+  const statuses = [{ context: 'CodeRabbit', state: 'success', description: 'Review completed' }];
+  const r = evaluate({ ...passingBots, config: withBotPolicies, statuses });
+  assert.equal(r.state, 'success');
+  assert.equal(r.autoMergeEligible, true);
+});
+
 test('description は commit status の上限 140 文字に収める', () => {
   const r = evaluate({ reviews: [], checkRuns: [] });
   assert.ok(r.description.length <= 140);
