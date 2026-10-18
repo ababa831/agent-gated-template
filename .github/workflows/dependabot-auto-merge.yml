@@ -1,0 +1,49 @@
+name: dependabot-auto-merge
+
+# Dependabot の PR で auto-merge を有効にする。マージされるのは agent-gate と CI が通った後。
+# - major の更新は対象外にし、PR にコメントする。
+# - .github/ を変更する更新（Actions の更新）は Tier 3 で、人間の承認後にマージされる。
+# - GITHUB_TOKEN で有効にするとマージ後の push がワークフローを起動せず、main の CI が走らない。
+#   そのため、エージェント用マシンユーザーのトークンを Dependabot の Secret AUTO_MERGE_TOKEN から使う。
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  enable:
+    name: enable
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - id: meta
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge
+        if: steps.meta.outputs.update-type != 'version-update:semver-major'
+        env:
+          GH_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::notice::Dependabot の Secret AUTO_MERGE_TOKEN が未設定のため、auto-merge を有効にしない（docs/setup.md）"
+            exit 0
+          fi
+          gh pr merge --auto --squash "$PR_URL"
+
+      - name: Comment on major updates
+        if: steps.meta.outputs.update-type == 'version-update:semver-major' && github.event.action == 'opened'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr comment "$PR_URL" --body "major の更新のため auto-merge を有効にしていません。変更履歴を確認してから手動でマージしてください。"
