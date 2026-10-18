@@ -29,7 +29,7 @@ function evaluateBot(bot, { headSha, reviews, checkRuns, statuses }) {
     const mine = reviews.filter((r) => loginOf(r) === bot.login);
     const latest = mine[mine.length - 1];
     const hint = bot.rerunHint ? `（再レビューは PR に「${bot.rerunHint}」とコメント）` : '';
-    if (!latest) return { name, state: 'pending', message: 'レビュー待ち' };
+    if (!latest) return { name, state: 'pending', absent: true, message: 'レビュー待ち' };
     if (latest.commit_id !== headSha) {
       return { name, state: 'pending', message: `最新コミットのレビュー待ち${hint}` };
     }
@@ -45,7 +45,7 @@ function evaluateBot(bot, { headSha, reviews, checkRuns, statuses }) {
   if (bot.type === 'check') {
     const re = compileTrusted(bot.namePattern, 'i');
     const run = checkRuns.filter((c) => re.test(c.name)).pop();
-    if (!run) return { name, state: 'pending', message: 'チェック待ち' };
+    if (!run) return { name, state: 'pending', absent: true, message: 'チェック待ち' };
     if (run.status !== 'completed') return { name, state: 'pending', message: `実行中（${run.status}）` };
     if (OK_CONCLUSIONS.includes(run.conclusion)) return { name, state: 'success', message: run.conclusion };
     return { name, state: 'failure', message: `結果: ${run.conclusion}` };
@@ -54,7 +54,7 @@ function evaluateBot(bot, { headSha, reviews, checkRuns, statuses }) {
   if (bot.type === 'status') {
     const re = compileTrusted(bot.contextPattern);
     const st = statuses.find((s) => re.test(s.context));
-    if (!st) return { name, state: 'pending', message: 'ステータス待ち' };
+    if (!st) return { name, state: 'pending', absent: true, message: 'ステータス待ち' };
     if (st.state === 'success') return { name, state: 'success', message: 'success' };
     if (st.state === 'pending') return { name, state: 'pending', message: '実行中' };
     return { name, state: 'failure', message: `結果: ${st.state}` };
@@ -117,11 +117,18 @@ function evaluateGate({ classification, pr, reviews = [], checkRuns = [], status
       message: `${pr.author} の PR は AI レビューの対象外（CI と audit で検査）`,
     });
   } else {
-    for (const bot of config.botReviewers) {
-      if (tier < (bot.minTier ?? 1)) continue;
-      const result = evaluateBot(bot, ctx);
-      if (result.skipped) botSkipped = true;
-      details.push(result);
+    const results = config.botReviewers
+      .filter((bot) => tier >= (bot.minTier ?? 1))
+      .map((bot) => evaluateBot(bot, ctx));
+    botSkipped = results.some((r) => r.skipped);
+    for (const r of results) {
+      // スキップを人間の承認で代替するときは、スキップの合図を出さないボット（Bugbot など）の
+      // 未着の結果も代替する。失敗や実行中の結果はこれまでどおりゲートを止める。
+      details.push(
+        botSkipped && r.absent
+          ? { name: r.name, state: 'success', message: '結果なし。人間の承認で代替する' }
+          : r,
+      );
     }
   }
 

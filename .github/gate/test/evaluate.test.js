@@ -242,6 +242,42 @@ test('AI レビューがスキップを報告したら、待ち続けずに人�
   assert.equal(approved.state, 'success');
 });
 
+test('スキップを人間の承認で代替するとき、結果が届いていない他のボットも代替の対象にする', () => {
+  const statuses = [{ context: 'CodeRabbit', state: 'success', description: 'Review skipped: bot user not eligible for review' }];
+  const base = {
+    config: withBotPolicies,
+    checkRuns: [],
+    statuses,
+    pr: { headSha: HEAD, draft: false, body: '', author: 'agent-app[bot]' },
+  };
+  assert.equal(evaluate(base).state, 'pending');
+  const approved = evaluate({ ...base, reviews: [review('owner', 'APPROVED')] });
+  assert.equal(approved.state, 'success');
+  assert.ok(approved.details.some((d) => d.name === 'Bugbot' && d.message.includes('代替')));
+});
+
+test('スキップの代替中でも、他のボットの失敗や実行中は止める', () => {
+  const statuses = [{ context: 'CodeRabbit', state: 'success', description: 'Review skipped' }];
+  const base = {
+    config: withBotPolicies,
+    statuses,
+    reviews: [review('owner', 'APPROVED')],
+    pr: { headSha: HEAD, draft: false, body: '', author: 'agent-app[bot]' },
+  };
+  assert.equal(evaluate({ ...base, checkRuns: [run('Cursor Bugbot', 'failure')] }).state, 'failure');
+  assert.equal(evaluate({ ...base, checkRuns: [run('Cursor Bugbot', null, 'in_progress')] }).state, 'pending');
+});
+
+test('スキップがなければ、結果が届いていないボットは pending のまま', () => {
+  const r = evaluate({
+    config: withBotPolicies,
+    classification: { tier: 3, reasons: [], sizeExceeded: false },
+    reviews: [review('coderabbitai[bot]', 'APPROVED'), review('owner', 'APPROVED')],
+    checkRuns: [],
+  });
+  assert.equal(r.state, 'pending');
+});
+
 test('スキップ以外のステータスはスキップとして扱わない', () => {
   const statuses = [{ context: 'CodeRabbit', state: 'success', description: 'Review completed' }];
   const r = evaluate({ ...passingBots, config: withBotPolicies, statuses });
